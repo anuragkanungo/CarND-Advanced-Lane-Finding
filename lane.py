@@ -1,42 +1,78 @@
-import glob
-import pickle
 import cv2
-import numpy as np
+import glob
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
+import numpy as np
 import os
 from PIL import Image
 from moviepy.editor import VideoFileClip
 
-def save_image(img, name, directory="output_images", convert_bgr=True):
-    if convert_bgr:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    Image.fromarray(img).save("{}/{}".format(directory, name))
 
-def save_threshold_image(img, color_binary, combined_binary, name, directory="output_images"):
-    f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(8,3))
-    f.tight_layout()
-    ax1.set_title('Original Image')
-    ax1.imshow(img)
-    ax2.set_title('Stacked Thresholds')
-    ax2.imshow(color_binary)
-    ax3.set_title('Combined Thresholds')
-    ax3.imshow(combined_binary, cmap='gray')
-    f.savefig(os.path.join(os.getcwd(), directory, name))
+##############################################################
+# Modified/Modularized Lesson Code
+##############################################################
 
-def save_warped_image(img, warped, name, directory="output_images"):
-    f, (ax1, ax2) = plt.subplots(1, 2, figsize=(6,3))
-    f.tight_layout()
-    ax1.set_title('Combined Binary')
-    ax1.imshow(img, cmap='gray')
-    ax2.set_title('Warped Image')
-    ax2.imshow(warped, cmap='gray')
-    f.savefig(os.path.join(os.getcwd(), directory, name))
+def calibrate_camera(dir_path):
+    images = glob.glob("{}/calibration*.jpg".format(dir_path))
+    nx, ny = 9, 6
+    
+    objpoints = []
+    imgpoints = []
 
-def save_hist(image, name, directory="output_images"):
-    f = plt.figure()
-    plt.plot(np.sum(image[image.shape[0]//2:,:], axis=0))
-    f.savefig(os.path.join(os.getcwd(), directory, name))
+    objp = np.zeros((nx*ny,3), np.float32)
+    objp[:,:2] = np.mgrid[0:nx,0:ny].T.reshape(-1, 2)
+
+    for file in images:
+        img = cv2.imread(file)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
+        ret, corners = cv2.findChessboardCorners(gray, (nx, ny), None)
+        if ret == True:
+            objpoints.append(objp)
+            imgpoints.append(corners)
+            img = cv2.drawChessboardCorners(img, (nx, ny), corners, ret)
+            save_image(img, "corners_{}".format(file.split("/")[-1]), directory=dir_path)
+
+    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
+    return mtx, dist
+
+def perspective_transform(image):
+    src = np.float32([[580, 460], [700, 460], [1040, 680], [260, 680]])
+    dst = np.float32([[200, 0], [1040, 0], [1040,720], [200,720]])
+
+    # Given src and dst points, calculate the perspective transform matrix
+    M = cv2.getPerspectiveTransform(src, dst)
+    Minv = cv2.getPerspectiveTransform(dst, src)
+    # Warp the image using OpenCV warpPerspective()
+    warped = cv2.warpPerspective(image, M, (image.shape[1], image.shape[0]))
+    # Return the resulting image and matrix
+    return warped, M, Minv
+
+
+def threshold(img, s_thresh=(170, 255), sx_thresh=(20, 100)):
+    # Convert to HLS color space and separate the L and S channels
+    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS).astype(np.float)
+    #print(hls.shape)
+    l_channel = hls[:,:,1]
+    s_channel = hls[:,:,2]
+    # Sobel x
+    sobelx = cv2.Sobel(l_channel, cv2.CV_64F, 1, 0) # Take the derivative in x
+    abs_sobelx = np.absolute(sobelx) # Absolute x derivative to accentuate lines away from horizontal
+    scaled_sobel = np.uint8(255*abs_sobelx/np.max(abs_sobelx))
+
+    # Threshold x gradient
+    sxbinary = np.zeros_like(scaled_sobel)
+    sxbinary[(scaled_sobel >= sx_thresh[0]) & (scaled_sobel <= sx_thresh[1])] = 1
+
+    # Threshold color channel
+    s_binary = np.zeros_like(s_channel)
+    s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
+
+    # Stack each channel
+    color_binary = np.dstack(( np.zeros_like(sxbinary), sxbinary, s_binary))
+
+    # Combine the two binary thresholds
+    combined_binary = np.zeros_like(sxbinary)
+    combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
+    return color_binary, combined_binary
 
 
 def sliding_window(binary_warped, name=None, directory=None, save=False):
@@ -249,68 +285,39 @@ def draw_lane_area(warped, undist, Minv, left_fitx, right_fitx, ploty, left_curv
     return result
 
 
-def calibrate_camera(dir_path):
-    images = glob.glob("{}/calibration*.jpg".format(dir_path))
-    nx, ny = 9, 6
-    
-    objpoints = []
-    imgpoints = []
+##############################################################
+# Functions Added
+##############################################################
 
-    objp = np.zeros((nx*ny,3), np.float32)
-    objp[:,:2] = np.mgrid[0:nx,0:ny].T.reshape(-1, 2)
+def save_image(img, name, directory="output_images", convert_bgr=True):
+    if convert_bgr:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    Image.fromarray(img).save("{}/{}".format(directory, name))
 
-    for file in images:
-        img = cv2.imread(file)
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
-        ret, corners = cv2.findChessboardCorners(gray, (nx, ny), None)
-        if ret == True:
-            objpoints.append(objp)
-            imgpoints.append(corners)
-            img = cv2.drawChessboardCorners(img, (nx, ny), corners, ret)
-            save_image(img, "corners_{}".format(file.split("/")[-1]), directory=dir_path)
+def save_threshold_image(img, color_binary, combined_binary, name, directory="output_images"):
+    f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(8,3))
+    f.tight_layout()
+    ax1.set_title('Original Image')
+    ax1.imshow(img)
+    ax2.set_title('Stacked Thresholds')
+    ax2.imshow(color_binary)
+    ax3.set_title('Combined Thresholds')
+    ax3.imshow(combined_binary, cmap='gray')
+    f.savefig(os.path.join(os.getcwd(), directory, name))
 
-    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
-    return mtx, dist
+def save_warped_image(img, warped, name, directory="output_images"):
+    f, (ax1, ax2) = plt.subplots(1, 2, figsize=(6,3))
+    f.tight_layout()
+    ax1.set_title('Combined Binary')
+    ax1.imshow(img, cmap='gray')
+    ax2.set_title('Warped Image')
+    ax2.imshow(warped, cmap='gray')
+    f.savefig(os.path.join(os.getcwd(), directory, name))
 
-def perspective_transform(image):
-    src = np.float32([[580, 460], [700, 460], [1040, 680], [260, 680]])
-    dst = np.float32([[200, 0], [1040, 0], [1040,720], [200,720]])
-
-    # Given src and dst points, calculate the perspective transform matrix
-    M = cv2.getPerspectiveTransform(src, dst)
-    Minv = cv2.getPerspectiveTransform(dst, src)
-    # Warp the image using OpenCV warpPerspective()
-    warped = cv2.warpPerspective(image, M, (image.shape[1], image.shape[0]))
-    # Return the resulting image and matrix
-    return warped, M, Minv
-
-
-def threshold(img, s_thresh=(170, 255), sx_thresh=(20, 100)):
-    # Convert to HLS color space and separate the L and S channels
-    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS).astype(np.float)
-    #print(hls.shape)
-    l_channel = hls[:,:,1]
-    s_channel = hls[:,:,2]
-    # Sobel x
-    sobelx = cv2.Sobel(l_channel, cv2.CV_64F, 1, 0) # Take the derivative in x
-    abs_sobelx = np.absolute(sobelx) # Absolute x derivative to accentuate lines away from horizontal
-    scaled_sobel = np.uint8(255*abs_sobelx/np.max(abs_sobelx))
-
-    # Threshold x gradient
-    sxbinary = np.zeros_like(scaled_sobel)
-    sxbinary[(scaled_sobel >= sx_thresh[0]) & (scaled_sobel <= sx_thresh[1])] = 1
-
-    # Threshold color channel
-    s_binary = np.zeros_like(s_channel)
-    s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
-
-    # Stack each channel
-    color_binary = np.dstack(( np.zeros_like(sxbinary), sxbinary, s_binary))
-
-    # Combine the two binary thresholds
-    combined_binary = np.zeros_like(sxbinary)
-    combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
-    return color_binary, combined_binary
+def save_hist(image, name, directory="output_images"):
+    f = plt.figure()
+    plt.plot(np.sum(image[image.shape[0]//2:,:], axis=0))
+    f.savefig(os.path.join(os.getcwd(), directory, name))
 
 
 def test_images(dir_path, output_path, mtx, dist):
@@ -350,13 +357,10 @@ def process_video(mtx, dist, input_path, output_path):
 
 def detect_lane_lines_pipeline():
     mtx, dist = calibrate_camera("camera_cal")
-    print('mtx: ', mtx)
-    print('dist: ', dist)
     test_images("test_images", "output_images", mtx, dist)
     process_video(mtx, dist, input_path="project_video.mp4", output_path="output_project_video.mp4")
     process_video(mtx, dist, input_path="challenge_video.mp4", output_path="output_challenge_video.mp4")
     process_video(mtx, dist, input_path="harder_challenge_video.mp4", output_path="output_harder_challenge_video.mp4")
-
 
 
 ##############################################################
