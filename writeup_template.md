@@ -20,11 +20,11 @@ The goals / steps of this project are the following:
 [image4]: ./output_images/warped_test1.jpg "Warped"
 [image5]: ./output_images/hist_test1.jpg "Hist"
 [image6]: ./output_images/sliding_test1.jpg "Sliding"
-[image7]: ./output_images/selection_test1.jpg "Sliding"
-[image8]: ./output_images/final_test1.jpg "Sliding"
-[video1]: ./output_project_video.mp4 "Video"
-[video2]: ./output_challenge_video.mp4 "Video"
-[video3]: ./output_harder_challenge_video.mp4 "Video"
+[image7]: ./output_images/selection_test1.jpg "Selection"
+[image8]: ./output_images/final_test1.jpg "Final"
+[video1]: ./output_project_video.mp4 "Project Video"
+[video2]: ./output_challenge_video.mp4 "Challenge Video"
+[video3]: ./output_harder_challenge_video.mp4 "Harder Challenge Video"
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
 
@@ -40,54 +40,33 @@ I then used the output `objpoints` and `imgpoints` to compute the camera calibra
 
 ![alt text][image0]
 
-Afterwards, I started to use the `test_images`. All the processed images are in `output_images` directory.
-Here is one the image on which all the processing was done.
+### Pipeline (single images)
+
+For the pipeline, I started to use the `test_images`. All the processed images are in `output_images` directory.
+Here is one the image on which all the pipeline processing was done.
 
 ![alt text][image1]
 
-
-Then using the output of camera cal (calibration coffiecinets), I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result: 
-
-![alt text][image2]
-
-### Pipeline (single images)
-
 #### 1. Provide an example of a distortion-corrected image.
 
-To demonstrate this step, I will describe how I apply the distortion correction to one of the test images like this one:
+Then using the output of camera cal (calibration coffiecinets), I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result: (The undistortion can be noticed in car bumper)
+
 ![alt text][image2]
 
 #### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 
-I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines # through # in `another_file.py`).  Here's an example of my output for this step.  (note: this is not actually from one of the test images)
+I used a combination of color and gradient thresholds to generate a binary image defined in the `threshold` function which starts at line 50.  Here's an example of my output for this step.
 
 ![alt text][image3]
 
 #### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
 
-The code for my perspective transform includes a function called `warper()`, which appears in lines 1 through 8 in the file `example.py` (output_images/examples/example.py) (or, for example, in the 3rd code cell of the IPython notebook).  The `warper()` function takes as inputs an image (`img`), as well as source (`src`) and destination (`dst`) points.  I chose the hardcode the source and destination points in the following manner:
+The code for my perspective transform includes a function called `perspective_transform()`, which starts at line 37.  I selected the following src and dst points using the image size.
 
-```python
-src = np.float32(
-    [[(img_size[0] / 2) - 55, img_size[1] / 2 + 100],
-    [((img_size[0] / 6) - 10), img_size[1]],
-    [(img_size[0] * 5 / 6) + 60, img_size[1]],
-    [(img_size[0] / 2 + 55), img_size[1] / 2 + 100]])
-dst = np.float32(
-    [[(img_size[0] / 4), 0],
-    [(img_size[0] / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), 0]])
 ```
-
-This resulted in the following source and destination points:
-
-| Source        | Destination   | 
-|:-------------:|:-------------:| 
-| 585, 460      | 320, 0        | 
-| 203, 720      | 320, 720      |
-| 1127, 720     | 960, 720      |
-| 695, 460      | 960, 0        |
+src = np.float32([[580, 460], [700, 460], [1040, 680], [260, 680]])
+dst = np.float32([[200, 0], [1040, 0], [1040,720], [200,720]])
+```
 
 I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.
 
@@ -95,19 +74,35 @@ I verified that my perspective transform was working as expected by drawing the 
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
-Then I did some other stuff and fit my lane lines with a 2nd order polynomial kinda like this:
+I used the second order polynomial fit functions to determine the lane line pixels, the code for it is in the sliding_window and selection_window method at line 78 and 168.
+
+I also plotted the histogram to see the thresholded images are correct such that correct pixels belong to the left line and the right line.
+
+
+Histogram image:
 
 ![alt text][image5]
 
+
+Sliding window image:
+
+![alt text][image6]
+
+
+Selection window image:
+
+![alt text][image7]
+
+
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
-I did this in lines # through # in my code in `my_other_file.py`
+I used the curvature method specified in the lesson which is defined in `curvature` function at line 231.
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
+After determining the curvature, I filled in the lane area as taught in the lesson. Here is an example image which includes the curvatures as well.
 
-![alt text][image6]
+![alt text][image8]
 
 ---
 
@@ -115,7 +110,7 @@ I implemented this step in lines # through # in my code in `yet_another_file.py`
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
 
-Here's a [link to my video result](./project_video.mp4)
+Here's a the video: ![alt text][video1]
 
 ---
 
