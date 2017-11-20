@@ -22,6 +22,7 @@ The goals / steps of this project are the following:
 [image6]: ./output_images/sliding_window_test1.jpg "Sliding"
 [image7]: ./output_images/selection_window_test1.jpg "Selection"
 [image8]: ./output_images/final_test1.jpg "Final"
+
 [video1]: ./output_project_video.mp4 "Project Video"
 [video2]: ./output_challenge_video.mp4 "Challenge Video"
 [video3]: ./output_harder_challenge_video.mp4 "Harder Challenge Video"
@@ -109,8 +110,11 @@ After determining the curvature, I filled in the lane area as taught in the less
 ### Pipeline (video)
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
+Using the VideoClip method I processed the video by passing each image to the lane detection pipeline.
 
-Here's a the video: ![alt text][video1]
+Here's a the video: 
+
+![alt text][video1]
 
 ---
 
