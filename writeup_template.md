@@ -111,10 +111,7 @@ After determining the curvature, I filled in the lane area as taught in the less
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
 Using the VideoClip method I processed the video by passing each image to the lane detection pipeline.
-
-Here's a the video: 
-
-![alt text][video1]
+Here's a [link to my video result](./output_project_video.mp4)
 
 ---
 
@@ -122,4 +119,7 @@ Here's a the video:
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+The code is not using the optimization for the selection window approach to process first frame using sliding window and next using selection window. The code works well on the project video but not on the challenge videos. Ideally looking to L channel or using the RGB color channels in combination could have helped such as they work well with the white lines.
+
+
+
