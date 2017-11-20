@@ -101,7 +101,7 @@ I used the curvature method specified in the lesson which is defined in `curvatu
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
-After determining the curvature, I filled in the lane area as taught in the lesson. Here is an example image which includes the curvatures as well.
+After determining the curvature, I filled in the lane area as taught in the lesson. Here is an example image which includes the curvatures and car position offset from right.
 
 ![alt text][image8]
 

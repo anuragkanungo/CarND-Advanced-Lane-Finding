@@ -275,7 +275,10 @@ def draw_lane_area(warped, undist, Minv, left_fitx, right_fitx, ploty, left_curv
     cv2.putText(result, text, (50,50), 1, 2, (255,255,255), 4)
     text = "Right Curvature: {:.2f} m".format(right_curverad)
     cv2.putText(result, text, (50,100), 1, 2, (255,255,255), 4)
-
+    car_from_right = (((left_fitx[0] + right_fitx[0]) / 2)-(warped.shape[1] / 2))*3.7/700
+    text = "Car Position from Right: {:.3f} m".format(car_from_right)
+    cv2.putText(result, text, (50,150), 1, 2, (255,255,255), 4)
+    
     if save:
         f = plt.figure()
         result = img = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
