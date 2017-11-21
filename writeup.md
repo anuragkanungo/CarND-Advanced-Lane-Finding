@@ -56,7 +56,7 @@ Then using the output of camera cal (calibration coffiecinets), I applied this d
 
 #### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 
-I used a combination of color and gradient thresholds to generate a binary image defined in the `threshold` function which starts at line 50.  Here's an example of my output for this step.
+I used a combination of yellow and white color thresholds to generate a binary image defined in the `threshold` function which starts at line 50.  Here's an example of my output for this step.
 
 ![alt text][image3]
 
