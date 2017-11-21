@@ -46,8 +46,20 @@ def perspective_transform(image):
     # Return the resulting image and matrix
     return warped, M, Minv
 
+def select_yellow(image):
+    hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+    lower = np.array([20,60,60])
+    upper = np.array([38,174, 250])
+    mask = cv2.inRange(hsv, lower, upper)
+    return mask
 
-def threshold(img, s_thresh=(170, 255), sx_thresh=(20, 100)):
+def select_white(image):
+    lower = np.array([202,202,202])
+    upper = np.array([255,255,255])
+    mask = cv2.inRange(image, lower, upper)
+    return mask
+
+def combined_thresh(img, s_thresh=(170, 255), sx_thresh=(20, 100)):
     # Convert to HLS color space and separate the L and S channels
     hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS).astype(np.float)
     #print(hls.shape)
@@ -74,6 +86,20 @@ def threshold(img, s_thresh=(170, 255), sx_thresh=(20, 100)):
     combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
     return color_binary, combined_binary
 
+def threshold(image):
+  yellow = select_yellow(image)
+  white = select_white(image)
+  combined_binary = np.zeros_like(yellow)
+  combined_binary[(yellow >= 1) | (white >= 1)] = 1
+  return combined_binary
+
+def both_threshold(image):
+  yellow = select_yellow(image)
+  white = select_white(image)
+  color_binary, com_binary = combined_thresh(image)
+  combined_binary = np.zeros_like(yellow)
+  combined_binary[(yellow >= 1) | (white >= 1) | (com_binary >= 1)] = 1
+  return combined_binary 
 
 def sliding_window(binary_warped, name=None, directory=None, save=False):
     # Assuming you have created a warped binary image called "binary_warped"
@@ -186,6 +212,7 @@ def selection_window(binary_warped, left_fit, right_fit, name=None, directory=No
     lefty = nonzeroy[left_lane_inds] 
     rightx = nonzerox[right_lane_inds]
     righty = nonzeroy[right_lane_inds]
+    
     # Fit a second order polynomial to each
     left_fit = np.polyfit(lefty, leftx, 2)
     right_fit = np.polyfit(righty, rightx, 2)
@@ -275,10 +302,10 @@ def draw_lane_area(warped, undist, Minv, left_fitx, right_fitx, ploty, left_curv
     cv2.putText(result, text, (50,50), 1, 2, (255,255,255), 4)
     text = "Right Curvature: {:.2f} m".format(right_curverad)
     cv2.putText(result, text, (50,100), 1, 2, (255,255,255), 4)
-    car_from_right = (((left_fitx[0] + right_fitx[0]) / 2)-(warped.shape[1] / 2))*3.7/700
-    text = "Car Position from Right: {:.3f} m".format(car_from_right)
-    cv2.putText(result, text, (50,150), 1, 2, (255,255,255), 4)
-    
+    distance = ((left_fitx[-1] + right_fitx[-1])/2 - 1280/2)*3.7/700
+    text = 'Car position : %.2f m %s of center'%(abs(distance), 'left' if distance < 0 else 'right')
+    cv2.putText(result, text ,(50,150), 1, 2, (255,255,255), 4)
+
     if save:
         f = plt.figure()
         result = img = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
@@ -308,6 +335,15 @@ def save_threshold_image(img, color_binary, combined_binary, name, directory="ou
     ax3.imshow(combined_binary, cmap='gray')
     f.savefig(os.path.join(os.getcwd(), directory, name))
 
+def save_threshold_image2(img, combined_binary, name, directory="output_images"):
+    f, (ax1, ax2) = plt.subplots(1, 2, figsize=(6,3))
+    f.tight_layout()
+    ax1.set_title('Original Image')
+    ax1.imshow(img)
+    ax2.set_title('Combined Thresholds')
+    ax2.imshow(combined_binary, cmap='gray')
+    f.savefig(os.path.join(os.getcwd(), directory, name))
+
 def save_warped_image(img, warped, name, directory="output_images"):
     f, (ax1, ax2) = plt.subplots(1, 2, figsize=(6,3))
     f.tight_layout()
@@ -329,8 +365,8 @@ def test_images(dir_path, output_path, mtx, dist):
         img = cv2.imread(file)
         undistort = cv2.undistort(img, mtx, dist, None, mtx)
         save_image(undistort, "undisoted_{}".format(file.split("/")[-1]), directory=output_path)
-        color_binary, combined_binary = threshold(undistort)
-        save_threshold_image(img, color_binary, combined_binary, "thresh_{}".format(file.split("/")[-1]), directory=output_path)
+        combined_binary = threshold(undistort)
+        save_threshold_image2(img, combined_binary, "thresh_{}".format(file.split("/")[-1]), directory=output_path)
         warped, M, Minv = perspective_transform(combined_binary)
         save_warped_image(combined_binary, warped, "warped_{}".format(file.split("/")[-1]), directory=output_path)
         save_hist(warped, "hist_{}".format(file.split("/")[-1]), directory=output_path)
@@ -342,7 +378,7 @@ def test_images(dir_path, output_path, mtx, dist):
 
 def find_lanes(img, mtx, dist):
     undistort = cv2.undistort(img, mtx, dist, None, mtx)
-    color_binary, combined_binary = threshold(undistort)
+    combined_binary = threshold(undistort)
     warped, M, Minv = perspective_transform(combined_binary)
     left_fit, right_fit = sliding_window(warped)
     left_fitx, right_fitx = selection_window(warped, left_fit, right_fit)
